@@ -2,35 +2,129 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 import psycopg2
 import os
 from datetime import datetime
+from urllib.parse import urlparse
 
 app = Flask(__name__)
 
-# Configuration - Use environment variables for production
-app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-here-change-in-production')
+# Configuration
+app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-change-in-production')
 
 def get_db_connection():
     try:
-        # Use DATABASE_URL from environment (provided by Render)
+        # Use DATABASE_URL from Render environment
         database_url = os.environ.get('DATABASE_URL')
         
         if database_url:
-            # Render provides DATABASE_URL, use it directly
-            conn = psycopg2.connect(database_url, sslmode='require')
-        else:
-            # Local development
+            # Parse the database URL for Render
+            result = urlparse(database_url)
+            username = result.username
+            password = result.password
+            database = result.path[1:]
+            hostname = result.hostname
+            port = result.port
+            
             conn = psycopg2.connect(
-                host=os.environ.get('DB_HOST', 'localhost'),
-                port=os.environ.get('DB_PORT', '5432'),
-                database=os.environ.get('DB_NAME', 'managament_db'),
-                user=os.environ.get('DB_USER', 'postgres'),
-                password=os.environ.get('DB_PASSWORD', 'Maxelo@2023')
+                dbname=database,
+                user=username,
+                password=password,
+                host=hostname,
+                port=port,
+                sslmode='require'
             )
-        return conn
+            return conn
+        else:
+            # Local development fallback
+            conn = psycopg2.connect(
+                host='localhost',
+                port=5432,
+                database='managament_db',
+                user='postgres',
+                password='Maxelo@2023'
+            )
+            return conn
     except Exception as e:
         print(f"Database connection error: {e}")
         return None
 
 def init_database():
+    conn = get_db_connection()
+    if conn:
+        cur = conn.cursor()
+        
+        try:
+            # Check if users table exists
+            cur.execute("""
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE table_name = 'users'
+                );
+            """)
+            table_exists = cur.fetchone()[0]
+            
+            if not table_exists:
+                print("Initializing database tables...")
+                
+                # Create users table
+                cur.execute('''
+                    CREATE TABLE users (
+                        id SERIAL PRIMARY KEY,
+                        employee_id VARCHAR(50) UNIQUE,
+                        email VARCHAR(100) UNIQUE NOT NULL,
+                        password VARCHAR(100) NOT NULL,
+                        name VARCHAR(100) NOT NULL,
+                        role VARCHAR(20) NOT NULL,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                ''')
+                
+                # Create todos table
+                cur.execute('''
+                    CREATE TABLE todos (
+                        id SERIAL PRIMARY KEY,
+                        user_id INTEGER REFERENCES users(id),
+                        task TEXT NOT NULL,
+                        completed BOOLEAN DEFAULT FALSE,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                ''')
+                
+                # Create messages table
+                cur.execute('''
+                    CREATE TABLE messages (
+                        id SERIAL PRIMARY KEY,
+                        sender_id INTEGER REFERENCES users(id),
+                        receiver_id INTEGER REFERENCES users(id),
+                        subject VARCHAR(200),
+                        message TEXT NOT NULL,
+                        document_path VARCHAR(300),
+                        is_read BOOLEAN DEFAULT FALSE,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                ''')
+                
+                # Insert admin user
+                cur.execute('''
+                    INSERT INTO users (employee_id, email, password, name, role) 
+                    VALUES (%s, %s, %s, %s, %s)
+                ''', ('ADMIN001', 'admin@maxelo.com', 'admin123', 'Admin User', 'admin'))
+                
+                # Insert sample employee
+                cur.execute('''
+                    INSERT INTO users (employee_id, email, password, name, role) 
+                    VALUES (%s, %s, %s, %s, %s)
+                ''', ('EMP001', 'mavis@maxelo.com', '123admin', 'Mavis', 'employee'))
+                
+                conn.commit()
+                print("Database tables created successfully!")
+            else:
+                print("Database tables already exist.")
+                
+        except Exception as e:
+            print(f"Error during database initialization: {e}")
+            conn.rollback()
+        finally:
+            cur.close()
+            conn.close()
     conn = get_db_connection()
     if conn:
         cur = conn.cursor()
