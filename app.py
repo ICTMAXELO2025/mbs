@@ -1,38 +1,25 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file
-import psycopg2
 import os
+import psycopg2
+from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file
 from datetime import datetime
-from urllib.parse import urlparse
 
 app = Flask(__name__)
 
 # Configuration
-app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-change-in-production')
+app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
 
 def get_db_connection():
     try:
-        # Use DATABASE_URL from Render environment
+        # Get DATABASE_URL from environment (Render provides this automatically)
         database_url = os.environ.get('DATABASE_URL')
         
         if database_url:
-            # Parse the database URL for Render
-            result = urlparse(database_url)
-            username = result.username
-            password = result.password
-            database = result.path[1:]
-            hostname = result.hostname
-            port = result.port
-            
-            conn = psycopg2.connect(
-                dbname=database,
-                user=username,
-                password=password,
-                host=hostname,
-                port=port,
-                sslmode='require'
-            )
+            print("🔗 Using DATABASE_URL from environment")
+            # For Render PostgreSQL
+            conn = psycopg2.connect(database_url, sslmode='require')
             return conn
         else:
+            print("🔗 Using local development database")
             # Local development fallback
             conn = psycopg2.connect(
                 host='localhost',
@@ -43,10 +30,11 @@ def get_db_connection():
             )
             return conn
     except Exception as e:
-        print(f"Database connection error: {e}")
+        print(f"❌ Database connection error: {e}")
         return None
 
 def init_database():
+    """Initialize database tables if they don't exist"""
     conn = get_db_connection()
     if conn:
         cur = conn.cursor()
@@ -62,7 +50,7 @@ def init_database():
             table_exists = cur.fetchone()[0]
             
             if not table_exists:
-                print("Initializing database tables...")
+                print("🔄 Initializing database tables...")
                 
                 # Create users table
                 cur.execute('''
@@ -115,99 +103,20 @@ def init_database():
                 ''', ('EMP001', 'mavis@maxelo.com', '123admin', 'Mavis', 'employee'))
                 
                 conn.commit()
-                print("Database tables created successfully!")
+                print("✅ Database tables created successfully!")
             else:
-                print("Database tables already exist.")
+                print("✅ Database tables already exist.")
                 
         except Exception as e:
-            print(f"Error during database initialization: {e}")
+            print(f"❌ Error during database initialization: {e}")
             conn.rollback()
         finally:
             cur.close()
             conn.close()
-    conn = get_db_connection()
-    if conn:
-        cur = conn.cursor()
-        
-        try:
-            # Check if users table exists
-            cur.execute("""
-                SELECT EXISTS (
-                    SELECT FROM information_schema.tables 
-                    WHERE table_name = 'users'
-                );
-            """)
-            table_exists = cur.fetchone()[0]
-            
-            if not table_exists:
-                print("Initializing database tables...")
-                
-                # Create users table
-                cur.execute('''
-                    CREATE TABLE users (
-                        id SERIAL PRIMARY KEY,
-                        employee_id VARCHAR(50) UNIQUE,
-                        email VARCHAR(100) UNIQUE NOT NULL,
-                        password VARCHAR(100) NOT NULL,
-                        name VARCHAR(100) NOT NULL,
-                        role VARCHAR(20) NOT NULL,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    )
-                ''')
-                
-                # Create todos table
-                cur.execute('''
-                    CREATE TABLE todos (
-                        id SERIAL PRIMARY KEY,
-                        user_id INTEGER REFERENCES users(id),
-                        task TEXT NOT NULL,
-                        completed BOOLEAN DEFAULT FALSE,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    )
-                ''')
-                
-                # Create messages table
-                cur.execute('''
-                    CREATE TABLE messages (
-                        id SERIAL PRIMARY KEY,
-                        sender_id INTEGER REFERENCES users(id),
-                        receiver_id INTEGER REFERENCES users(id),
-                        subject VARCHAR(200),
-                        message TEXT NOT NULL,
-                        document_path VARCHAR(300),
-                        is_read BOOLEAN DEFAULT FALSE,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    )
-                ''')
-                
-                # Insert admin user
-                cur.execute('''
-                    INSERT INTO users (employee_id, email, password, name, role) 
-                    VALUES (%s, %s, %s, %s, %s)
-                ''', ('ADMIN001', 'admin@maxelo.com', 'admin123', 'Admin User', 'admin'))
-                
-                # Insert sample employee
-                cur.execute('''
-                    INSERT INTO users (employee_id, email, password, name, role) 
-                    VALUES (%s, %s, %s, %s, %s)
-                ''', ('EMP001', 'mavis@maxelo.com', '123admin', 'Mavis', 'employee'))
-                
-                conn.commit()
-                print("Database tables created successfully!")
-            else:
-                print("Database tables already exist.")
-                
-        except Exception as e:
-            print(f"Error during database initialization: {e}")
-            conn.rollback()
-        finally:
-            cur.close()
-            conn.close()
+    else:
+        print("❌ Could not connect to database for initialization")
 
-# [Keep all your routes exactly as they were in your working version]
-# ... (Include all your route functions here)
-
-# Routes
+# [Keep all your routes the same as before]
 @app.route('/')
 def index():
     return render_template('base.html')
@@ -220,23 +129,27 @@ def admin_login():
         
         conn = get_db_connection()
         if conn:
-            cur = conn.cursor()
-            cur.execute('SELECT * FROM users WHERE email = %s AND password = %s AND role = %s', 
-                       (email, password, 'admin'))
-            user = cur.fetchone()
-            cur.close()
-            conn.close()
-            
-            if user:
-                session['user_id'] = user[0]
-                session['email'] = user[2]
-                session['role'] = user[5]
-                session['name'] = user[4]
-                return redirect(url_for('admin_dashboard'))
-            else:
-                flash('Invalid admin credentials')
+            try:
+                cur = conn.cursor()
+                cur.execute('SELECT * FROM users WHERE email = %s AND password = %s AND role = %s', 
+                           (email, password, 'admin'))
+                user = cur.fetchone()
+                cur.close()
+                conn.close()
+                
+                if user:
+                    session['user_id'] = user[0]
+                    session['email'] = user[2]
+                    session['role'] = user[5]
+                    session['name'] = user[4]
+                    return redirect(url_for('admin_dashboard'))
+                else:
+                    flash('Invalid admin credentials')
+            except Exception as e:
+                flash('Database error during login')
+                print(f"Login error: {e}")
         else:
-            flash('Database connection error')
+            flash('Database connection error - please check configuration')
     
     return render_template('admin/login.html')
 
@@ -248,25 +161,31 @@ def employee_login():
         
         conn = get_db_connection()
         if conn:
-            cur = conn.cursor()
-            cur.execute('SELECT * FROM users WHERE email = %s AND password = %s AND role = %s', 
-                       (email, password, 'employee'))
-            user = cur.fetchone()
-            cur.close()
-            conn.close()
-            
-            if user:
-                session['user_id'] = user[0]
-                session['email'] = user[2]
-                session['role'] = user[5]
-                session['name'] = user[4]
-                return redirect(url_for('employee_dashboard'))
-            else:
-                flash('Invalid employee credentials')
+            try:
+                cur = conn.cursor()
+                cur.execute('SELECT * FROM users WHERE email = %s AND password = %s AND role = %s', 
+                           (email, password, 'employee'))
+                user = cur.fetchone()
+                cur.close()
+                conn.close()
+                
+                if user:
+                    session['user_id'] = user[0]
+                    session['email'] = user[2]
+                    session['role'] = user[5]
+                    session['name'] = user[4]
+                    return redirect(url_for('employee_dashboard'))
+                else:
+                    flash('Invalid employee credentials')
+            except Exception as e:
+                flash('Database error during login')
+                print(f"Login error: {e}")
         else:
-            flash('Database connection error')
+            flash('Database connection error - please check configuration')
     
     return render_template('employee/login.html')
+
+# [Include all your other routes - dashboard, todos, messages, profile, etc.]
 
 @app.route('/admin/dashboard')
 def admin_dashboard():

@@ -1,32 +1,35 @@
+import os
 import psycopg2
-import json  # Using json instead of yaml
+from urllib.parse import urlparse
 
 def init_database():
-    # Load configuration from JSON file
-    with open('config.json', 'r') as config_file:  # Changed to config.json
-        config = json.load(config_file)  # Using json.load instead of yaml.safe_load
-
+    print("🚀 Starting database initialization...")
+    
+    # Get DATABASE_URL from environment
+    database_url = os.environ.get('DATABASE_URL')
+    
+    if not database_url:
+        print("❌ DATABASE_URL environment variable not found!")
+        print("Please set DATABASE_URL environment variable")
+        return False
+    
+    print("✅ DATABASE_URL found")
+    
     try:
-        # Use development configuration
-        db_config = config['database']['development']
-        conn = psycopg2.connect(
-            host=db_config['host'],
-            port=db_config['port'],
-            database=db_config['database'],
-            user=db_config['user'],
-            password=db_config['password']
-        )
+        # Connect to Render PostgreSQL
+        conn = psycopg2.connect(database_url, sslmode='require')
+        print("✅ Connected to database successfully!")
         
         cur = conn.cursor()
         
         # Drop tables if they exist (for clean start)
-        print("Dropping existing tables...")
+        print("🔄 Dropping existing tables...")
         cur.execute('DROP TABLE IF EXISTS messages CASCADE')
         cur.execute('DROP TABLE IF EXISTS todos CASCADE') 
         cur.execute('DROP TABLE IF EXISTS users CASCADE')
         
         # Create users table
-        print("Creating users table...")
+        print("🔄 Creating users table...")
         cur.execute('''
             CREATE TABLE users (
                 id SERIAL PRIMARY KEY,
@@ -40,7 +43,7 @@ def init_database():
         ''')
         
         # Create todos table
-        print("Creating todos table...")
+        print("🔄 Creating todos table...")
         cur.execute('''
             CREATE TABLE todos (
                 id SERIAL PRIMARY KEY,
@@ -52,7 +55,7 @@ def init_database():
         ''')
         
         # Create messages table
-        print("Creating messages table...")
+        print("🔄 Creating messages table...")
         cur.execute('''
             CREATE TABLE messages (
                 id SERIAL PRIMARY KEY,
@@ -67,14 +70,14 @@ def init_database():
         ''')
         
         # Insert admin user
-        print("Inserting admin user...")
+        print("🔄 Inserting admin user...")
         cur.execute('''
             INSERT INTO users (employee_id, email, password, name, role) 
             VALUES (%s, %s, %s, %s, %s)
-        ''', ('ADMIN001', config['admin']['email'], config['admin']['password'], 'Admin User', 'admin'))
+        ''', ('ADMIN001', 'admin@maxelo.com', 'admin123', 'Admin User', 'admin'))
         
         # Insert sample employee
-        print("Inserting sample employee...")
+        print("🔄 Inserting sample employee...")
         cur.execute('''
             INSERT INTO users (employee_id, email, password, name, role) 
             VALUES (%s, %s, %s, %s, %s)
@@ -83,10 +86,18 @@ def init_database():
         conn.commit()
         cur.close()
         conn.close()
-        print("Database initialized successfully!")
+        
+        print("✅ Database initialized successfully!")
+        print("📊 Created tables: users, todos, messages")
+        print("👤 Default users created:")
+        print("   - Admin: admin@maxelo.com / admin123")
+        print("   - Employee: mavis@maxelo.com / 123admin")
+        
+        return True
         
     except Exception as e:
-        print(f"Error initializing database: {e}")
+        print(f"❌ Error initializing database: {e}")
+        return False
 
 if __name__ == '__main__':
     init_database()
