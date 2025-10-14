@@ -113,11 +113,6 @@ def init_database():
 # [Keep all your routes exactly as they were in your working version]
 # ... (Include all your route functions here)
 
-if __name__ == '__main__':
-    init_database()
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=False)
-
 # Routes
 @app.route('/')
 def index():
