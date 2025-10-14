@@ -7,7 +7,7 @@ import traceback
 app = Flask(__name__)
 
 # Configuration
-app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
+app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-change-in-production')
 
 def get_db_connection():
     """Get database connection with error handling"""
@@ -24,8 +24,8 @@ def get_db_connection():
         return None
 
 def initialize_database():
-    """FORCE initialize database tables and data"""
-    print("🚀 FORCE INITIALIZING DATABASE...")
+    """Initialize database tables and data"""
+    print("🚀 Initializing database...")
     
     conn = get_db_connection()
     if not conn:
@@ -36,8 +36,6 @@ def initialize_database():
         cur = conn.cursor()
         
         # Drop and recreate all tables
-        print("🔄 Creating database tables...")
-        
         cur.execute('DROP TABLE IF EXISTS messages CASCADE')
         cur.execute('DROP TABLE IF EXISTS todos CASCADE') 
         cur.execute('DROP TABLE IF EXISTS users CASCADE')
@@ -97,14 +95,7 @@ def initialize_database():
         # Verify creation
         cur.execute("SELECT COUNT(*) FROM users")
         user_count = cur.fetchone()[0]
-        
-        cur.execute("SELECT email, name, role FROM users")
-        users = cur.fetchall()
-        
-        print(f"✅ Database initialized successfully!")
-        print(f"📊 Users created: {user_count}")
-        for user in users:
-            print(f"   - {user[0]} ({user[1]} - {user[2]})")
+        print(f"✅ Database initialized successfully! Users created: {user_count}")
             
         cur.close()
         conn.close()
@@ -113,137 +104,99 @@ def initialize_database():
     except Exception as e:
         print(f"❌ Database initialization failed: {e}")
         traceback.print_exc()
-        conn.rollback()
         return False
 
 # Initialize database on startup
 print("=" * 60)
 print("🚀 WORK MANAGEMENT APP STARTING...")
 print("=" * 60)
-
-# Force database initialization
-if initialize_database():
-    print("🎉 DATABASE READY - App is starting...")
-else:
-    print("⚠️ DATABASE INITIALIZATION FAILED - App may not work properly")
-
+initialize_database()
 print("=" * 60)
 
-# Routes
+# ===== ROUTES =====
+
 @app.route('/')
 def index():
+    """Home page with login options"""
     return render_template('base.html')
+
+# ===== AUTHENTICATION ROUTES =====
 
 @app.route('/admin/login', methods=['GET', 'POST'])
 def admin_login():
+    """Admin login"""
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
-        
-        print(f"🔐 Admin login attempt: {email}")
         
         conn = get_db_connection()
         if conn:
             try:
                 cur = conn.cursor()
-                print(f"🔄 Executing query for: {email}")
-                
                 cur.execute('SELECT * FROM users WHERE email = %s AND password = %s AND role = %s', 
                            (email, password, 'admin'))
                 user = cur.fetchone()
                 
                 if user:
-                    print(f"✅ Login successful for: {user[4]}")
                     session['user_id'] = user[0]
                     session['email'] = user[2]
                     session['role'] = user[5]
                     session['name'] = user[4]
-                    
-                    cur.close()
-                    conn.close()
+                    flash('Login successful!')
                     return redirect(url_for('admin_dashboard'))
                 else:
-                    print(f"❌ Login failed for: {email}")
                     flash('Invalid admin credentials')
                 
                 cur.close()
                 conn.close()
-                
             except Exception as e:
-                print(f"❌ Database error during login: {e}")
-                # If table doesn't exist, try to initialize
-                if "relation \"users\" does not exist" in str(e):
-                    print("🔄 Users table missing - attempting to initialize database...")
-                    if initialize_database():
-                        flash('Database was reset - please try logging in again')
-                    else:
-                        flash('Database initialization failed - please contact administrator')
-                else:
-                    flash('Database error during login - please try again')
+                flash('Database error during login')
         else:
-            flash('Database connection error - please check configuration')
+            flash('Database connection error')
     
     return render_template('admin/login.html')
 
 @app.route('/employee/login', methods=['GET', 'POST'])
 def employee_login():
+    """Employee login"""
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
-        
-        print(f"🔐 Employee login attempt: {email}")
         
         conn = get_db_connection()
         if conn:
             try:
                 cur = conn.cursor()
-                print(f"🔄 Executing query for: {email}")
-                
                 cur.execute('SELECT * FROM users WHERE email = %s AND password = %s AND role = %s', 
                            (email, password, 'employee'))
                 user = cur.fetchone()
                 
                 if user:
-                    print(f"✅ Login successful for: {user[4]}")
                     session['user_id'] = user[0]
                     session['email'] = user[2]
                     session['role'] = user[5]
                     session['name'] = user[4]
-                    
-                    cur.close()
-                    conn.close()
+                    flash('Login successful!')
                     return redirect(url_for('employee_dashboard'))
                 else:
-                    print(f"❌ Login failed for: {email}")
                     flash('Invalid employee credentials')
                 
                 cur.close()
                 conn.close()
-                
             except Exception as e:
-                print(f"❌ Database error during login: {e}")
-                # If table doesn't exist, try to initialize
-                if "relation \"users\" does not exist" in str(e):
-                    print("🔄 Users table missing - attempting to initialize database...")
-                    if initialize_database():
-                        flash('Database was reset - please try logging in again')
-                    else:
-                        flash('Database initialization failed - please contact administrator')
-                else:
-                    flash('Database error during login - please try again')
+                flash('Database error during login')
         else:
-            flash('Database connection error - please check configuration')
+            flash('Database connection error')
     
     return render_template('employee/login.html')
 
 @app.route('/reset_password', methods=['GET', 'POST'])
 def reset_password():
+    """Password reset for all users"""
     if request.method == 'POST':
         email = request.form['email']
         employee_id = request.form['employee_id']
         new_password = request.form['new_password']
-        
-        print(f"🔑 Password reset attempt for: {email}")
         
         conn = get_db_connection()
         if conn:
@@ -255,28 +208,32 @@ def reset_password():
                 if user:
                     cur.execute('UPDATE users SET password = %s WHERE email = %s', (new_password, email))
                     conn.commit()
-                    print(f"✅ Password reset successful for: {email}")
                     flash('Password reset successfully! You can now login with your new password.')
-                    cur.close()
-                    conn.close()
                     return redirect(url_for('index'))
                 else:
-                    print(f"❌ Password reset failed - invalid credentials for: {email}")
                     flash('Invalid email or employee ID')
                 
                 cur.close()
                 conn.close()
-                
             except Exception as e:
-                print(f"❌ Database error during password reset: {e}")
                 flash('Database error during password reset')
         else:
             flash('Database connection error')
     
     return render_template('reset_password.html')
 
+@app.route('/logout')
+def logout():
+    """Logout all users"""
+    session.clear()
+    flash('You have been logged out successfully.')
+    return redirect(url_for('index'))
+
+# ===== DASHBOARD ROUTES =====
+
 @app.route('/admin/dashboard')
 def admin_dashboard():
+    """Admin dashboard"""
     if 'user_id' not in session or session['role'] != 'admin':
         return redirect(url_for('admin_login'))
     
@@ -306,7 +263,6 @@ def admin_dashboard():
                                  employees_count=employees_count)
         except Exception as e:
             flash('Error loading dashboard')
-            print(f"Dashboard error: {e}")
     else:
         flash('Database connection error')
     
@@ -314,6 +270,7 @@ def admin_dashboard():
 
 @app.route('/employee/dashboard')
 def employee_dashboard():
+    """Employee dashboard"""
     if 'user_id' not in session or session['role'] != 'employee':
         return redirect(url_for('employee_login'))
     
@@ -336,16 +293,314 @@ def employee_dashboard():
             return render_template('employee/dashboard.html', todos=todos, unread_count=unread_count)
         except Exception as e:
             flash('Error loading dashboard')
-            print(f"Dashboard error: {e}")
     else:
         flash('Database connection error')
     
     return redirect(url_for('employee_login'))
 
-@app.route('/logout')
-def logout():
-    session.clear()
-    return redirect(url_for('index'))
+# ===== TODO ROUTES =====
+
+@app.route('/add_todo', methods=['POST'])
+def add_todo():
+    """Add new todo item"""
+    if 'user_id' not in session:
+        return redirect(url_for('index'))
+    
+    task = request.form['task']
+    conn = get_db_connection()
+    if conn:
+        try:
+            cur = conn.cursor()
+            cur.execute('INSERT INTO todos (user_id, task) VALUES (%s, %s)', (session['user_id'], task))
+            conn.commit()
+            flash('Todo added successfully!')
+        except Exception as e:
+            flash('Error adding todo')
+        finally:
+            cur.close()
+            conn.close()
+    else:
+        flash('Database connection error')
+    
+    return redirect(url_for(f"{session['role']}_dashboard"))
+
+@app.route('/toggle_todo/<int:todo_id>')
+def toggle_todo(todo_id):
+    """Toggle todo completion status"""
+    if 'user_id' not in session:
+        return redirect(url_for('index'))
+    
+    conn = get_db_connection()
+    if conn:
+        try:
+            cur = conn.cursor()
+            cur.execute('UPDATE todos SET completed = NOT completed WHERE id = %s AND user_id = %s', 
+                       (todo_id, session['user_id']))
+            conn.commit()
+        except Exception as e:
+            flash('Error updating todo')
+        finally:
+            cur.close()
+            conn.close()
+    
+    return redirect(url_for(f"{session['role']}_dashboard"))
+
+@app.route('/delete_todo/<int:todo_id>')
+def delete_todo(todo_id):
+    """Delete todo item"""
+    if 'user_id' not in session:
+        return redirect(url_for('index'))
+    
+    conn = get_db_connection()
+    if conn:
+        try:
+            cur = conn.cursor()
+            cur.execute('DELETE FROM todos WHERE id = %s AND user_id = %s', (todo_id, session['user_id']))
+            conn.commit()
+            flash('Todo deleted successfully!')
+        except Exception as e:
+            flash('Error deleting todo')
+        finally:
+            cur.close()
+            conn.close()
+    else:
+        flash('Database connection error')
+    
+    return redirect(url_for(f"{session['role']}_dashboard"))
+
+# ===== MESSAGE ROUTES =====
+
+@app.route('/admin/send_message', methods=['GET', 'POST'])
+def admin_send_message():
+    """Admin send message to employees"""
+    if 'user_id' not in session or session['role'] != 'admin':
+        return redirect(url_for('admin_login'))
+    
+    conn = get_db_connection()
+    if conn:
+        try:
+            cur = conn.cursor()
+            
+            if request.method == 'POST':
+                receiver_id = request.form['receiver_id']
+                subject = request.form['subject']
+                message = request.form['message']
+                
+                if receiver_id == 'all':
+                    # Send to all employees
+                    cur.execute('SELECT id FROM users WHERE role = %s', ('employee',))
+                    employees = cur.fetchall()
+                    for employee in employees:
+                        cur.execute('''
+                            INSERT INTO messages (sender_id, receiver_id, subject, message) 
+                            VALUES (%s, %s, %s, %s)
+                        ''', (session['user_id'], employee[0], subject, message))
+                else:
+                    cur.execute('''
+                        INSERT INTO messages (sender_id, receiver_id, subject, message) 
+                        VALUES (%s, %s, %s, %s)
+                    ''', (session['user_id'], receiver_id, subject, message))
+                
+                conn.commit()
+                flash('Message sent successfully!')
+                return redirect(url_for('admin_dashboard'))
+            
+            # Get employees for dropdown
+            cur.execute('SELECT id, name, email FROM users WHERE role = %s', ('employee',))
+            employees = cur.fetchall()
+            cur.close()
+            conn.close()
+            
+            return render_template('admin/send_message.html', employees=employees)
+            
+        except Exception as e:
+            flash('Error sending message')
+    else:
+        flash('Database connection error')
+    
+    return redirect(url_for('admin_dashboard'))
+
+@app.route('/employee/send_message', methods=['GET', 'POST'])
+def employee_send_message():
+    """Employee send message to admin or other employees"""
+    if 'user_id' not in session or session['role'] != 'employee':
+        return redirect(url_for('employee_login'))
+    
+    conn = get_db_connection()
+    if conn:
+        try:
+            cur = conn.cursor()
+            
+            if request.method == 'POST':
+                receiver_id = request.form['receiver_id']
+                subject = request.form['subject']
+                message = request.form['message']
+                
+                cur.execute('''
+                    INSERT INTO messages (sender_id, receiver_id, subject, message) 
+                    VALUES (%s, %s, %s, %s)
+                ''', (session['user_id'], receiver_id, subject, message))
+                
+                conn.commit()
+                flash('Message sent successfully!')
+                return redirect(url_for('employee_dashboard'))
+            
+            # Get recipients (admin and other employees)
+            cur.execute('SELECT id, name, role FROM users WHERE id != %s', (session['user_id'],))
+            recipients = cur.fetchall()
+            cur.close()
+            conn.close()
+            
+            return render_template('employee/send_message.html', recipients=recipients)
+            
+        except Exception as e:
+            flash('Error sending message')
+    else:
+        flash('Database connection error')
+    
+    return redirect(url_for('employee_dashboard'))
+
+@app.route('/inbox')
+def inbox():
+    """View received messages"""
+    if 'user_id' not in session:
+        return redirect(url_for('index'))
+    
+    conn = get_db_connection()
+    if conn:
+        try:
+            cur = conn.cursor()
+            
+            # Mark messages as read when viewing inbox
+            cur.execute('UPDATE messages SET is_read = TRUE WHERE receiver_id = %s', (session['user_id'],))
+            
+            # Get received messages
+            cur.execute('''
+                SELECT m.*, u.name as sender_name 
+                FROM messages m 
+                JOIN users u ON m.sender_id = u.id 
+                WHERE m.receiver_id = %s 
+                ORDER BY m.created_at DESC
+            ''', (session['user_id'],))
+            messages = cur.fetchall()
+            
+            conn.commit()
+            cur.close()
+            conn.close()
+            
+            template = f"{session['role']}/inbox.html"
+            return render_template(template, messages=messages)
+            
+        except Exception as e:
+            flash('Error loading messages')
+    else:
+        flash('Database connection error')
+    
+    return redirect(url_for(f"{session['role']}_dashboard"))
+
+# ===== PROFILE ROUTES =====
+
+@app.route('/profile')
+def profile():
+    """View user profile"""
+    if 'user_id' not in session:
+        return redirect(url_for('index'))
+    
+    conn = get_db_connection()
+    if conn:
+        try:
+            cur = conn.cursor()
+            cur.execute('SELECT * FROM users WHERE id = %s', (session['user_id'],))
+            user = cur.fetchone()
+            cur.close()
+            conn.close()
+            
+            template = f"{session['role']}/profile.html"
+            return render_template(template, user=user)
+            
+        except Exception as e:
+            flash('Error loading profile')
+    else:
+        flash('Database connection error')
+    
+    return redirect(url_for(f"{session['role']}_dashboard"))
+
+# ===== EMPLOYEE MANAGEMENT ROUTES (ADMIN ONLY) =====
+
+@app.route('/admin/add_employee', methods=['GET', 'POST'])
+def add_employee():
+    """Add new employee (Admin only)"""
+    if 'user_id' not in session or session['role'] != 'admin':
+        return redirect(url_for('admin_login'))
+    
+    if request.method == 'POST':
+        employee_id = request.form['employee_id']
+        name = request.form['name']
+        email = request.form['email']
+        password = request.form['password']
+        
+        conn = get_db_connection()
+        if conn:
+            try:
+                cur = conn.cursor()
+                cur.execute('''
+                    INSERT INTO users (employee_id, name, email, password, role) 
+                    VALUES (%s, %s, %s, %s, 'employee')
+                ''', (employee_id, name, email, password))
+                conn.commit()
+                flash('Employee added successfully!')
+                return redirect(url_for('manage_employees'))
+            except Exception as e:
+                flash('Employee ID or email already exists')
+            finally:
+                cur.close()
+                conn.close()
+    
+    return render_template('admin/add_employee.html')
+
+@app.route('/admin/manage_employees')
+def manage_employees():
+    """Manage employees (Admin only)"""
+    if 'user_id' not in session or session['role'] != 'admin':
+        return redirect(url_for('admin_login'))
+    
+    conn = get_db_connection()
+    if conn:
+        try:
+            cur = conn.cursor()
+            cur.execute('SELECT id, employee_id, name, email, created_at FROM users WHERE role = %s ORDER BY created_at DESC', ('employee',))
+            employees = cur.fetchall()
+            cur.close()
+            conn.close()
+            
+            return render_template('admin/manage_employees.html', employees=employees)
+        except Exception as e:
+            flash('Error loading employees')
+    else:
+        flash('Database connection error')
+    
+    return redirect(url_for('admin_dashboard'))
+
+@app.route('/admin/delete_employee/<int:employee_id>')
+def delete_employee(employee_id):
+    """Delete employee (Admin only)"""
+    if 'user_id' not in session or session['role'] != 'admin':
+        return redirect(url_for('admin_login'))
+    
+    conn = get_db_connection()
+    if conn:
+        try:
+            cur = conn.cursor()
+            cur.execute('DELETE FROM users WHERE id = %s AND role = %s', (employee_id, 'employee'))
+            conn.commit()
+            flash('Employee deleted successfully!')
+        except Exception as e:
+            flash('Error deleting employee')
+        finally:
+            cur.close()
+            conn.close()
+    
+    return redirect(url_for('manage_employees'))
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
