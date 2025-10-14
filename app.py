@@ -236,6 +236,45 @@ def employee_login():
     
     return render_template('employee/login.html')
 
+@app.route('/reset_password', methods=['GET', 'POST'])
+def reset_password():
+    if request.method == 'POST':
+        email = request.form['email']
+        employee_id = request.form['employee_id']
+        new_password = request.form['new_password']
+        
+        print(f"🔑 Password reset attempt for: {email}")
+        
+        conn = get_db_connection()
+        if conn:
+            try:
+                cur = conn.cursor()
+                cur.execute('SELECT * FROM users WHERE email = %s AND employee_id = %s', (email, employee_id))
+                user = cur.fetchone()
+                
+                if user:
+                    cur.execute('UPDATE users SET password = %s WHERE email = %s', (new_password, email))
+                    conn.commit()
+                    print(f"✅ Password reset successful for: {email}")
+                    flash('Password reset successfully! You can now login with your new password.')
+                    cur.close()
+                    conn.close()
+                    return redirect(url_for('index'))
+                else:
+                    print(f"❌ Password reset failed - invalid credentials for: {email}")
+                    flash('Invalid email or employee ID')
+                
+                cur.close()
+                conn.close()
+                
+            except Exception as e:
+                print(f"❌ Database error during password reset: {e}")
+                flash('Database error during password reset')
+        else:
+            flash('Database connection error')
+    
+    return render_template('reset_password.html')
+
 @app.route('/admin/dashboard')
 def admin_dashboard():
     if 'user_id' not in session or session['role'] != 'admin':
