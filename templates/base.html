@@ -5,11 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Work Management System</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
+    <!-- Animated background elements -->
+    <div class="corner-decoration corner-1"></div>
+    <div class="corner-decoration corner-2"></div>
+    
     <div class="login-container">
         <div class="login-header">
-            <h1>Work Management</h1>
+            <h1><i class="fas fa-briefcase"></i> Work Management</h1>
             <p>Maxelo Technologies</p>
         </div>
         
@@ -26,10 +31,43 @@
         {% endwith %}
         
         <div class="login-links">
-            <a href="{{ url_for('admin_login') }}">Admin Login</a>
-            <a href="{{ url_for('employee_login') }}">Employee Login</a>
-            <a href="{{ url_for('reset_password') }}">Reset Password</a>
+            <a href="{{ url_for('admin_login') }}">
+                <i class="fas fa-user-shield"></i> Admin Login
+            </a>
+            <a href="{{ url_for('employee_login') }}">
+                <i class="fas fa-users"></i> Employee Login
+            </a>
+            <a href="{{ url_for('reset_password') }}">
+                <i class="fas fa-key"></i> Reset Password
+            </a>
         </div>
     </div>
+
+    <script>
+        // Add subtle interactive effects
+        document.addEventListener('DOMContentLoaded', function() {
+            const links = document.querySelectorAll('.login-links a');
+            
+            links.forEach(link => {
+                link.addEventListener('mouseenter', function() {
+                    this.style.transform = 'translateY(-3px)';
+                });
+                
+                link.addEventListener('mouseleave', function() {
+                    this.style.transform = 'translateY(0)';
+                });
+            });
+
+            // Auto-dismiss flash messages after 5 seconds
+            const alerts = document.querySelectorAll('.alert');
+            alerts.forEach(alert => {
+                setTimeout(() => {
+                    alert.style.opacity = '0';
+                    alert.style.transform = 'translateX(-100%)';
+                    setTimeout(() => alert.remove(), 300);
+                }, 5000);
+            });
+        });
+    </script>
 </body>
 </html>
