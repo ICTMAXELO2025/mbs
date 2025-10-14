@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Work Management System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <h1>Work Management</h1>
+            <p>Maxelo Technologies</p>
+        </div>
+        
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for message in messages %}
+                        <div class="alert alert-{{ 'success' if 'success' in message else 'error' }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        
+        <div class="login-links">
+            <a href="{{ url_for('admin_login') }}">Admin Login</a>
+            <a href="{{ url_for('employee_login') }}">Employee Login</a>
+            <a href="{{ url_for('reset_password') }}">Reset Password</a>
+        </div>
+    </div>
+</body>
+</html>

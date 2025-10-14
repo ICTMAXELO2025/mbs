@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile - Employee</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h2>Work Management</h2>
+            <p>Employee Panel</p>
+        </div>
+        <ul class="sidebar-menu">
+            <li><a href="{{ url_for('employee_dashboard') }}">Dashboard</a></li>
+            <li><a href="{{ url_for('employee_send_message') }}">Send Message</a></li>
+            <li><a href="{{ url_for('inbox') }}">Inbox</a></li>
+            <li><a href="{{ url_for('profile') }}" class="active">Profile</a></li>
+            <li><a href="{{ url_for('logout') }}">Logout</a></li>
+        </ul>
+    </div>
+
+    <div class="main-content">
+        <div class="header">
+            <div class="welcome-message">
+                <h1>My Profile</h1>
+                <p>Employee Dashboard</p>
+            </div>
+            <div class="user-info">
+                <span>Logged in as: {{ session.email }}</span>
+                <a href="{{ url_for('logout') }}" class="btn btn-danger">Logout</a>
+            </div>
+        </div>
+
+        <div class="dashboard-section">
+            <h2>Profile Information</h2>
+            
+            <div class="profile-info">
+                <div>
+                    <div class="info-group">
+                        <div class="info-label">Employee ID:</div>
+                        <div class="info-value">{{ user[1] }}</div>
+                    </div>
+                    
+                    <div class="info-group">
+                        <div class="info-label">Full Name:</div>
+                        <div class="info-value">{{ user[4] }}</div>
+                    </div>
+                    
+                    <div class="info-group">
+                        <div class="info-label">Email Address:</div>
+                        <div class="info-value">{{ user[2] }}</div>
+                    </div>
+                </div>
+                
+                <div>
+                    <div class="info-group">
+                        <div class="info-label">Role:</div>
+                        <div class="info-value">{{ user[5] }}</div>
+                    </div>
+                    
+                    <div class="info-group">
+                        <div class="info-label">Account Created:</div>
+                        <div class="info-value">{{ user[6].strftime('%Y-%m-%d %H:%M:%S') }}</div>
+                    </div>
+                    
+                    <div class="info-group">
+                        <div class="info-label">Status:</div>
+                        <div class="info-value" style="color: #28a745;">Active</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="margin-top: 30px;">
+                <a href="{{ url_for('reset_password') }}" class="btn btn-primary">Reset Password</a>
+                <a href="{{ url_for('employee_dashboard') }}" class="btn btn-danger">Back to Dashboard</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>

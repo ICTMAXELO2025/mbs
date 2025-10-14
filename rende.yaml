@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: work-management-app
+    env: python
+    plan: free
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn app:app"
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: PYTHON_VERSION
+        value: 3.9.0
+
+databases:
+  - name: work_management_db
+    plan: free
+    databaseName: work_management
+    user: work_management_user

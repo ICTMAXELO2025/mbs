@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inbox - Admin</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h2>Work Management</h2>
+            <p>Admin Panel</p>
+        </div>
+        <ul class="sidebar-menu">
+            <li><a href="{{ url_for('admin_dashboard') }}">Dashboard</a></li>
+            <li><a href="{{ url_for('add_employee') }}">Add Employee</a></li>
+            <li><a href="{{ url_for('manage_employees') }}">Manage Employees</a></li>
+            <li><a href="{{ url_for('admin_send_message') }}">Send Message</a></li>
+            <li><a href="{{ url_for('inbox') }}" class="active">Inbox</a></li>
+            <li><a href="{{ url_for('profile') }}">Profile</a></li>
+            <li><a href="{{ url_for('logout') }}">Logout</a></li>
+        </ul>
+    </div>
+
+    <div class="main-content">
+        <div class="header">
+            <div class="welcome-message">
+                <h1>Inbox</h1>
+                <p>Admin Dashboard</p>
+            </div>
+            <div class="user-info">
+                <span>Logged in as: {{ session.email }}</span>
+                <a href="{{ url_for('logout') }}" class="btn btn-danger">Logout</a>
+            </div>
+        </div>
+
+        <div class="dashboard-section">
+            <h2>Received Messages</h2>
+            
+            {% if messages %}
+                {% for message in messages %}
+                <div class="message-item {% if not message[6] %}unread{% endif %}">
+                    <div class="message-header">
+                        <span class="message-sender">From: {{ message[8] }}</span>
+                        <span class="message-date">{{ message[7].strftime('%Y-%m-%d %H:%M') }}</span>
+                    </div>
+                    <div class="message-subject">{{ message[3] }}</div>
+                    <div class="message-content">{{ message[4] }}</div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p>No messages in your inbox.</p>
+            {% endif %}
+            
+            <div style="margin-top: 20px;">
+                <a href="{{ url_for('admin_send_message') }}" class="btn btn-primary">Compose New Message</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
