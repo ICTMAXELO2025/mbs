@@ -2,33 +2,55 @@ import os
 import psycopg2
 from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file
 from datetime import datetime
+from urllib.parse import urlparse
 
 app = Flask(__name__)
 
 # Configuration
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
 
+
+
+
 def get_db_connection():
     try:
-        # Get DATABASE_URL from environment (Render provides this automatically)
+        # Get DATABASE_URL from environment
         database_url = os.environ.get('DATABASE_URL')
         
-        if database_url:
-            print("🔗 Using DATABASE_URL from environment")
-            # For Render PostgreSQL
-            conn = psycopg2.connect(database_url, sslmode='require')
-            return conn
-        else:
-            print("🔗 Using local development database")
-            # Local development fallback
-            conn = psycopg2.connect(
-                host='localhost',
-                port=5432,
-                database='managament_db',
-                user='postgres',
-                password='Maxelo@2023'
+        if not database_url:
+            print("❌ DATABASE_URL not found in environment")
+            return None
+        
+        # Try different connection methods
+        connection_methods = [
+            # Method 1: Direct connection with sslmode=require
+            lambda: psycopg2.connect(database_url, sslmode='require'),
+            # Method 2: Direct connection without sslmode
+            lambda: psycopg2.connect(database_url),
+            # Method 3: Parsed connection
+            lambda: psycopg2.connect(
+                host=urlparse(database_url).hostname,
+                port=urlparse(database_url).port,
+                database=urlparse(database_url).path[1:],
+                user=urlparse(database_url).username,
+                password=urlparse(database_url).password,
+                sslmode='require'
             )
-            return conn
+        ]
+        
+        for i, method in enumerate(connection_methods):
+            try:
+                print(f"🔄 Trying connection method {i+1}...")
+                conn = method()
+                print(f"✅ Database connection successful with method {i+1}")
+                return conn
+            except Exception as e:
+                print(f"❌ Connection method {i+1} failed: {e}")
+                continue
+        
+        print("❌ All connection methods failed")
+        return None
+        
     except Exception as e:
         print(f"❌ Database connection error: {e}")
         return None
