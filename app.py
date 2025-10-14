@@ -149,27 +149,49 @@ def admin_login():
         email = request.form['email']
         password = request.form['password']
         
+        print(f"🔐 Admin login attempt: {email}")
+        
         conn = get_db_connection()
         if conn:
             try:
                 cur = conn.cursor()
+                print(f"🔄 Executing query for: {email}")
+                
                 cur.execute('SELECT * FROM users WHERE email = %s AND password = %s AND role = %s', 
                            (email, password, 'admin'))
                 user = cur.fetchone()
-                cur.close()
-                conn.close()
                 
                 if user:
+                    print(f"✅ Login successful for: {user[4]}")
                     session['user_id'] = user[0]
                     session['email'] = user[2]
                     session['role'] = user[5]
                     session['name'] = user[4]
+                    
+                    cur.close()
+                    conn.close()
                     return redirect(url_for('admin_dashboard'))
                 else:
+                    print(f"❌ Login failed for: {email}")
+                    # Check why it failed
+                    cur.execute('SELECT * FROM users WHERE email = %s', (email,))
+                    user_exists = cur.fetchone()
+                    if user_exists:
+                        print(f"   User exists but password/role mismatch")
+                        print(f"   Stored role: {user_exists[5]}")
+                    else:
+                        print(f"   User does not exist")
+                    
                     flash('Invalid admin credentials')
+                
+                cur.close()
+                conn.close()
+                
             except Exception as e:
-                flash('Database error during login')
-                print(f"Login error: {e}")
+                print(f"❌ Database error during admin login: {e}")
+                import traceback
+                traceback.print_exc()
+                flash('Database error during login - please try again')
         else:
             flash('Database connection error - please check configuration')
     
@@ -181,32 +203,53 @@ def employee_login():
         email = request.form['email']
         password = request.form['password']
         
+        print(f"🔐 Employee login attempt: {email}")
+        
         conn = get_db_connection()
         if conn:
             try:
                 cur = conn.cursor()
+                print(f"🔄 Executing query for: {email}")
+                
                 cur.execute('SELECT * FROM users WHERE email = %s AND password = %s AND role = %s', 
                            (email, password, 'employee'))
                 user = cur.fetchone()
-                cur.close()
-                conn.close()
                 
                 if user:
+                    print(f"✅ Login successful for: {user[4]}")
                     session['user_id'] = user[0]
                     session['email'] = user[2]
                     session['role'] = user[5]
                     session['name'] = user[4]
+                    
+                    cur.close()
+                    conn.close()
                     return redirect(url_for('employee_dashboard'))
                 else:
+                    print(f"❌ Login failed for: {email}")
+                    # Check why it failed
+                    cur.execute('SELECT * FROM users WHERE email = %s', (email,))
+                    user_exists = cur.fetchone()
+                    if user_exists:
+                        print(f"   User exists but password/role mismatch")
+                        print(f"   Stored role: {user_exists[5]}")
+                    else:
+                        print(f"   User does not exist")
+                    
                     flash('Invalid employee credentials')
+                
+                cur.close()
+                conn.close()
+                
             except Exception as e:
-                flash('Database error during login')
-                print(f"Login error: {e}")
+                print(f"❌ Database error during employee login: {e}")
+                import traceback
+                traceback.print_exc()
+                flash('Database error during login - please try again')
         else:
             flash('Database connection error - please check configuration')
     
     return render_template('employee/login.html')
-
 # [Include all your other routes - dashboard, todos, messages, profile, etc.]
 
 @app.route('/admin/dashboard')
