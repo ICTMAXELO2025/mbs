@@ -10,15 +10,27 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-change-in-production')
 
 def get_db_connection():
-    """Get database connection with error handling"""
+    """Get database connection with support for both local PostgreSQL and Render"""
     try:
+        # First, try to use Render database (production)
         database_url = os.environ.get('DATABASE_URL')
-        if not database_url:
-            print("❌ DATABASE_URL not found")
-            return None
-            
-        conn = psycopg2.connect(database_url, sslmode='require')
-        return conn
+        
+        if database_url:
+            # Render PostgreSQL - use the provided DATABASE_URL
+            print("🔗 Using Render PostgreSQL database")
+            conn = psycopg2.connect(database_url, sslmode='require')
+            return conn
+        else:
+            # Fallback to local PostgreSQL development database
+            print("🔗 Using local PostgreSQL database")
+            conn = psycopg2.connect(
+                host='localhost',
+                port=5432,
+                database='managament_db',
+                user='postgres',
+                password='Maxelo@2023'
+            )
+            return conn
     except Exception as e:
         print(f"❌ Database connection error: {e}")
         return None
@@ -34,6 +46,11 @@ def initialize_database():
         
     try:
         cur = conn.cursor()
+        
+        # Check which database we're using
+        cur.execute("SELECT current_database()")
+        db_name = cur.fetchone()[0]
+        print(f"📊 Initializing database: {db_name}")
         
         # Drop and recreate all tables
         cur.execute('DROP TABLE IF EXISTS messages CASCADE')
@@ -96,6 +113,7 @@ def initialize_database():
         cur.execute("SELECT COUNT(*) FROM users")
         user_count = cur.fetchone()[0]
         print(f"✅ Database initialized successfully! Users created: {user_count}")
+        print(f"📊 Database: {db_name}")
             
         cur.close()
         conn.close()
@@ -110,6 +128,18 @@ def initialize_database():
 print("=" * 60)
 print("🚀 WORK MANAGEMENT APP STARTING...")
 print("=" * 60)
+
+# Check which database we're using
+conn = get_db_connection()
+if conn:
+    cur = conn.cursor()
+    cur.execute("SELECT current_database(), version()")
+    db_info = cur.fetchone()
+    print(f"📊 Connected to: {db_info[0]}")
+    print(f"🔧 PostgreSQL: {db_info[1].split(',')[0]}")
+    cur.close()
+    conn.close()
+
 initialize_database()
 print("=" * 60)
 

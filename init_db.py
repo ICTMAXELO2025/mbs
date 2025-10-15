@@ -3,30 +3,50 @@ import psycopg2
 from urllib.parse import urlparse
 import traceback
 
+def get_db_connection():
+    """Get database connection with support for both local PostgreSQL and Render"""
+    try:
+        # First, try to use Render database (production)
+        database_url = os.environ.get('DATABASE_URL')
+        
+        if database_url:
+            # Render PostgreSQL - use the provided DATABASE_URL
+            print("🔗 Using Render PostgreSQL database")
+            conn = psycopg2.connect(database_url, sslmode='require')
+            return conn
+        else:
+            # Fallback to local PostgreSQL development database
+            print("🔗 Using local PostgreSQL database")
+            conn = psycopg2.connect(
+                host='localhost',
+                port=5432,
+                database='managament_db',
+                user='postgres',
+                password='Maxelo@2023'
+            )
+            return conn
+    except Exception as e:
+        print(f"❌ Database connection error: {e}")
+        return None
+
 def init_database():
     """Initialize the database with all required tables and data"""
     print("🚀 DATABASE INITIALIZATION STARTED")
     print("=" * 60)
     
-    # Check environment
-    database_url = os.environ.get('DATABASE_URL')
-    if not database_url:
-        print("❌ DATABASE_URL environment variable not found!")
-        print("💡 Make sure your database is connected to your web service on Render")
+    conn = get_db_connection()
+    if not conn:
+        print("❌ Cannot connect to database")
         return False
     
-    print("✅ DATABASE_URL found")
-    
     try:
-        # Parse database URL for logging
-        parsed = urlparse(database_url)
-        print(f"🔗 Connecting to: {parsed.hostname}/{parsed.path[1:]}")
-        
-        # Connect to database
-        conn = psycopg2.connect(database_url, sslmode='require')
-        print("✅ Connected to database successfully!")
-        
         cur = conn.cursor()
+        
+        # Check which database we're using
+        cur.execute("SELECT current_database(), version()")
+        db_info = cur.fetchone()
+        print(f"📊 Initializing database: {db_info[0]}")
+        print(f"🔧 PostgreSQL: {db_info[1].split(',')[0]}")
         
         # Drop existing tables (clean start)
         print("\n🗑️  Cleaning existing tables...")
@@ -187,6 +207,7 @@ def init_database():
         print("\n📋 Login Credentials:")
         print("   👑 Admin: admin@maxelo.com / admin123")
         print("   👤 Employee: mavis@maxelo.com / 123admin")
+        print(f"📊 Database: {db_info[0]}")
         print("\n💡 Your application is now ready to use!")
         
         return True

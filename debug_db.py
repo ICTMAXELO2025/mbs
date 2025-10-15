@@ -3,6 +3,32 @@ import psycopg2
 from urllib.parse import urlparse
 import traceback
 
+def get_db_connection():
+    """Get database connection with support for both local PostgreSQL and Render"""
+    try:
+        # First, try to use Render database (production)
+        database_url = os.environ.get('DATABASE_URL')
+        
+        if database_url:
+            # Render PostgreSQL - use the provided DATABASE_URL
+            print("🔗 Using Render PostgreSQL database")
+            conn = psycopg2.connect(database_url, sslmode='require')
+            return conn
+        else:
+            # Fallback to local PostgreSQL development database
+            print("🔗 Using local PostgreSQL database")
+            conn = psycopg2.connect(
+                host='localhost',
+                port=5432,
+                database='managament_db',
+                user='postgres',
+                password='Maxelo@2023'
+            )
+            return conn
+    except Exception as e:
+        print(f"❌ Database connection error: {e}")
+        return None
+
 def debug_database_connection():
     """Comprehensive database debugging"""
     print("🔍 DATABASE DEBUG STARTED")
@@ -16,30 +42,42 @@ def debug_database_connection():
     print(f"   DATABASE_URL: {'✅ Found' if database_url else '❌ Missing'}")
     print(f"   SECRET_KEY: {'✅ Found' if secret_key else '❌ Missing'}")
     
-    if not database_url:
-        print("❌ DATABASE_URL environment variable is missing!")
-        print("💡 Make sure your database is connected to your web service on Render")
-        return False
-    
-    # Parse and display database info (masked for security)
-    try:
-        parsed = urlparse(database_url)
-        print(f"🔗 Database Info:")
-        print(f"   - Host: {parsed.hostname}")
-        print(f"   - Port: {parsed.port}")
-        print(f"   - Database: {parsed.path[1:]}")
-        print(f"   - Username: {parsed.username}")
-        print(f"   - Password: {'*' * 8} (hidden for security)")
-    except Exception as e:
-        print(f"❌ Error parsing DATABASE_URL: {e}")
+    if database_url:
+        # Parse and display database info (masked for security)
+        try:
+            parsed = urlparse(database_url)
+            print(f"🔗 Render Database Info:")
+            print(f"   - Host: {parsed.hostname}")
+            print(f"   - Port: {parsed.port}")
+            print(f"   - Database: {parsed.path[1:]}")
+            print(f"   - Username: {parsed.username}")
+            print(f"   - Password: {'*' * 8} (hidden for security)")
+        except Exception as e:
+            print(f"❌ Error parsing DATABASE_URL: {e}")
+    else:
+        print("🔗 Local Database Info:")
+        print(f"   - Host: localhost")
+        print(f"   - Port: 5432") 
+        print(f"   - Database: managament_db")
+        print(f"   - Username: postgres")
+        print(f"   - Password: Maxelo@2023")
     
     # Test connection
     print("\n🔄 Testing database connection...")
-    try:
-        conn = psycopg2.connect(database_url, sslmode='require')
-        print("✅ Database connection successful!")
+    conn = get_db_connection()
+    if not conn:
+        print("❌ Database connection failed!")
+        return False
         
+    try:
         cur = conn.cursor()
+        
+        # Check which database we're using
+        cur.execute("SELECT current_database(), version()")
+        db_info = cur.fetchone()
+        print(f"✅ Database connection successful!")
+        print(f"📊 Connected to: {db_info[0]}")
+        print(f"🔧 PostgreSQL: {db_info[1].split(',')[0]}")
         
         # Check tables
         print("\n📊 Checking database tables...")
@@ -142,12 +180,11 @@ def test_specific_queries():
     """Test specific queries that might be failing"""
     print("\n🧪 Testing specific queries...")
     
-    database_url = os.environ.get('DATABASE_URL')
-    if not database_url:
+    conn = get_db_connection()
+    if not conn:
         return
     
     try:
-        conn = psycopg2.connect(database_url, sslmode='require')
         cur = conn.cursor()
         
         queries = [
