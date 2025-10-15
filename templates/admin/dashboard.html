@@ -17,9 +17,11 @@
             <li><a href="{{ url_for('add_employee') }}">Add Employee</a></li>
             <li><a href="{{ url_for('manage_employees') }}">Manage Employees</a></li>
             <li><a href="{{ url_for('admin_send_message') }}">Send Message</a></li>
+             <li><a href="https://docsadminmbs.onrender.com/">Manage Documents</a></li>
             <li><a href="{{ url_for('inbox') }}">Inbox {% if unread_count > 0 %}({{ unread_count }}){% endif %}</a></li>
             <li><a href="{{ url_for('profile') }}">Profile</a></li>
             <li><a href="{{ url_for('logout') }}">Logout</a></li>
+           
         </ul>
     </div>
 

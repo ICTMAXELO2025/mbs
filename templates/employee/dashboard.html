@@ -15,8 +15,11 @@
         <ul class="sidebar-menu">
             <li><a href="{{ url_for('employee_dashboard') }}" class="active">Dashboard</a></li>
             <li><a href="{{ url_for('employee_send_message') }}">Send Message</a></li>
+             <li><a href="https://empdocsmbs.onrender.com/">Manage Documents</a></li>
             <li><a href="{{ url_for('inbox') }}">Inbox {% if unread_count > 0 %}({{ unread_count }}){% endif %}</a></li>
             <li><a href="{{ url_for('profile') }}">Profile</a></li>
+            
+           
             <li><a href="{{ url_for('logout') }}">Logout</a></li>
         </ul>
     </div>
