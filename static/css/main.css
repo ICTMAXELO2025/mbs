@@ -234,7 +234,6 @@ button, input, textarea, select {
     overflow-x: auto;
 }
 
-
 /* ===== ALERT STYLES ===== */
 .alert {
     padding: 15px 20px;
@@ -297,7 +296,11 @@ button, input, textarea, select {
 
 /* ===== LOGIN PAGE STYLES ===== */
 .login-page {
-    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+    background: linear-gradient(135deg, rgba(0, 51, 102, 0.8) 0%, rgba(255, 107, 53, 0.8) 100%), 
+                url('https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQdd6zLqggMMnk264JLqJmhTi1Es0PkSpbFgg&s');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
     min-height: 100vh;
     display: flex;
     align-items: center;
@@ -431,6 +434,78 @@ button, input, textarea, select {
     background: var(--primary);
     color: var(--white);
     box-shadow: 0 12px 30px rgba(0, 51, 102, 0.4);
+}
+
+/* ===== RESET PASSWORD PAGE STYLES ===== */
+.reset-password-page {
+    background: linear-gradient(135deg, rgba(0, 51, 102, 0.8) 0%, rgba(255, 107, 53, 0.8) 100%), 
+                url('https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQdd6zLqggMMnk264JLqJmhTi1Es0PkSpbFgg&s');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+}
+
+.reset-password-page::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px);
+    background-size: 50px 50px;
+    animation: float 20s infinite linear;
+    z-index: 0;
+}
+
+.reset-password-container {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    padding: 50px 40px;
+    border-radius: 20px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    max-width: 450px;
+    position: relative;
+    z-index: 1;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transform: translateY(0);
+    transition: var(--transition);
+}
+
+.reset-password-container:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+}
+
+.reset-password-header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.reset-password-header h1 {
+    color: #2c3e50;
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 10px;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.reset-password-header p {
+    color: #7f8c8d;
+    font-size: 1.1rem;
+    font-weight: 500;
+    letter-spacing: 1px;
 }
 
 /* ===== DASHBOARD LAYOUT ===== */
@@ -845,12 +920,14 @@ button, input, textarea, select {
 }
 
 @media (max-width: 576px) {
-    .login-container {
+    .login-container,
+    .reset-password-container {
         padding: 30px 20px;
         margin: 15px;
     }
     
-    .login-header h1 {
+    .login-header h1,
+    .reset-password-header h1 {
         font-size: 2rem;
     }
     
@@ -931,7 +1008,7 @@ button, input, textarea, select {
 }
 
 .login-header h1 {
-    color: #1a365d; /* Navy blue */
+    color: #1a365d;
     margin-bottom: 10px;
     font-size: 28px;
     font-weight: 600;
@@ -968,7 +1045,7 @@ button, input, textarea, select {
 
 .form-group input:focus {
     outline: none;
-    border-color: #dd6b20; /* Orange */
+    border-color: #dd6b20;
     box-shadow: 0 0 0 3px rgba(221, 107, 32, 0.1);
 }
 
@@ -980,7 +1057,7 @@ button, input, textarea, select {
 .btn {
     width: 100%;
     padding: 14px 20px;
-    background: #dd6b20; /* Orange */
+    background: #dd6b20;
     color: white;
     border: none;
     border-radius: 6px;
@@ -992,7 +1069,7 @@ button, input, textarea, select {
 }
 
 .btn:hover {
-    background: #c05621; /* Darker orange */
+    background: #c05621;
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(221, 107, 32, 0.3);
 }
@@ -1030,14 +1107,14 @@ button, input, textarea, select {
 }
 
 .login-links a {
-    color: #dd6b20; /* Orange */
+    color: #dd6b20;
     text-decoration: none;
     font-size: 14px;
     transition: color 0.3s ease;
 }
 
 .login-links a:hover {
-    color: #c05621; /* Darker orange */
+    color: #c05621;
     text-decoration: underline;
 }
 
