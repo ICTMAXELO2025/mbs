@@ -89,7 +89,7 @@ def init_database():
         ''')
         print("   ✅ 'todos' table created")
         
-        # Messages table
+        # Messages table with document support
         print("   Creating 'messages' table...")
         cur.execute('''
             CREATE TABLE messages (
@@ -99,11 +99,12 @@ def init_database():
                 subject VARCHAR(200),
                 message TEXT NOT NULL,
                 document_path VARCHAR(300),
+                document_filename VARCHAR(300),
                 is_read BOOLEAN DEFAULT FALSE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
-        print("   ✅ 'messages' table created")
+        print("   ✅ 'messages' table created with document support")
         
         # Insert default users
         print("\n👥 Inserting default users...")
@@ -121,6 +122,13 @@ def init_database():
                 'email': 'mavis@maxelo.com',
                 'password': '123admin',
                 'name': 'Mavis',
+                'role': 'employee'
+            },
+            {
+                'employee_id': 'EMP002', 
+                'email': 'john@maxelo.com',
+                'password': '123admin',
+                'name': 'John Doe',
                 'role': 'employee'
             }
         ]
@@ -143,14 +151,18 @@ def init_database():
         admin_id = cur.fetchone()[0]
         
         cur.execute("SELECT id FROM users WHERE email = 'mavis@maxelo.com'")
-        employee_id = cur.fetchone()[0]
+        mavis_id = cur.fetchone()[0]
+        
+        cur.execute("SELECT id FROM users WHERE email = 'john@maxelo.com'")
+        john_id = cur.fetchone()[0]
         
         # Sample todos
         sample_todos = [
             (admin_id, "Review weekly reports", False),
             (admin_id, "Schedule team meeting", True),
-            (employee_id, "Complete project documentation", False),
-            (employee_id, "Submit timesheet", False)
+            (mavis_id, "Complete project documentation", False),
+            (mavis_id, "Submit timesheet", False),
+            (john_id, "Prepare client presentation", False)
         ]
         
         for todo in sample_todos:
@@ -160,16 +172,22 @@ def init_database():
             except Exception as e:
                 print(f"   ❌ Failed to add todo: {e}")
         
-        # Sample messages
+        # Sample messages with document references
         sample_messages = [
-            (admin_id, employee_id, "Welcome to the team!", "Hello Mavis, welcome to Maxelo Technologies! We're excited to have you on board."),
-            (employee_id, admin_id, "Question about project", "Hi Admin, I have a question about the new project requirements. When would be a good time to discuss?")
+            (admin_id, mavis_id, "Welcome to the team!", "Hello Mavis, welcome to Maxelo Technologies! We're excited to have you on board. Please find the employee handbook attached.", None, None),
+            (mavis_id, admin_id, "Question about project", "Hi Admin, I have a question about the new project requirements. When would be a good time to discuss?", None, None),
+            (admin_id, john_id, "Project Deadline Update", "Hi John, please review the updated project timeline document attached. The deadline has been moved up by one week.", "/sample/path/project_timeline.pdf", "project_timeline.pdf"),
+            (john_id, admin_id, "Client Meeting Notes", "Attached are the notes from yesterday's client meeting. Please review and let me know your feedback.", "/sample/path/meeting_notes.docx", "client_meeting_notes.docx")
         ]
         
         for msg in sample_messages:
             try:
-                cur.execute('INSERT INTO messages (sender_id, receiver_id, subject, message) VALUES (%s, %s, %s, %s)', msg)
-                print(f"   ✅ Added message: {msg[2]}")
+                cur.execute('''
+                    INSERT INTO messages (sender_id, receiver_id, subject, message, document_path, document_filename) 
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                ''', msg)
+                has_doc = "📎 WITH DOCUMENT" if msg[4] else ""
+                print(f"   ✅ Added message: {msg[2]} {has_doc}")
             except Exception as e:
                 print(f"   ❌ Failed to add message: {e}")
         
@@ -192,12 +210,30 @@ def init_database():
         message_count = cur.fetchone()[0]
         print(f"   ✅ Messages in database: {message_count}")
         
+        # Check messages with documents
+        cur.execute("SELECT COUNT(*) FROM messages WHERE document_path IS NOT NULL")
+        messages_with_docs = cur.fetchone()[0]
+        print(f"   ✅ Messages with documents: {messages_with_docs}")
+        
         # Display final user list
         print("\n📋 Final user list:")
         cur.execute("SELECT employee_id, email, name, role FROM users ORDER BY role, name")
         users = cur.fetchall()
         for user in users:
             print(f"   - {user[2]} ({user[1]}) - {user[3]} - ID: {user[0]}")
+        
+        # Display message statistics
+        print("\n💌 Message Statistics:")
+        cur.execute('''
+            SELECT u.name as sender, COUNT(*) as sent_count,
+                   COUNT(m.document_path) as with_documents
+            FROM messages m
+            JOIN users u ON m.sender_id = u.id
+            GROUP BY u.name
+        ''')
+        msg_stats = cur.fetchall()
+        for stat in msg_stats:
+            print(f"   - {stat[0]}: {stat[1]} messages sent ({stat[2]} with documents)")
         
         cur.close()
         conn.close()
@@ -206,8 +242,15 @@ def init_database():
         print("🎉 DATABASE INITIALIZATION COMPLETED SUCCESSFULLY!")
         print("\n📋 Login Credentials:")
         print("   👑 Admin: admin@maxelo.com / admin123")
-        print("   👤 Employee: mavis@maxelo.com / 123admin")
+        print("   👤 Employee 1: mavis@maxelo.com / 123admin")
+        print("   👤 Employee 2: john@maxelo.com / 123admin")
         print(f"📊 Database: {db_info[0]}")
+        print("\n📎 FEATURES INCLUDED:")
+        print("   ✅ User authentication system")
+        print("   ✅ Todo management")
+        print("   ✅ Messaging with document attachments")
+        print("   ✅ File upload/download support")
+        print("   ✅ Admin and employee roles")
         print("\n💡 Your application is now ready to use!")
         
         return True

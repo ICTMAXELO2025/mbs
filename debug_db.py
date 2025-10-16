@@ -96,6 +96,20 @@ def debug_database_connection():
         else:
             print("❌ No tables found in database")
         
+        # Check table structures
+        print("\n🏗️  Checking table structures...")
+        for table in tables:
+            cur.execute(f"""
+                SELECT column_name, data_type, is_nullable
+                FROM information_schema.columns
+                WHERE table_name = '{table}'
+                ORDER BY ordinal_position
+            """)
+            columns = cur.fetchall()
+            print(f"   📋 {table} table columns:")
+            for col in columns:
+                print(f"      - {col[0]} ({col[1]}, nullable: {col[2]})")
+        
         # Check users table specifically
         if 'users' in tables:
             print("\n👥 Checking users table data...")
@@ -114,17 +128,38 @@ def debug_database_connection():
         else:
             print("❌ 'users' table not found")
         
+        # Check messages table with document support
+        if 'messages' in tables:
+            print("\n💌 Checking messages table (with document support)...")
+            cur.execute("SELECT COUNT(*) FROM messages")
+            message_count = cur.fetchone()[0]
+            print(f"   Total messages: {message_count}")
+            
+            cur.execute("SELECT COUNT(*) FROM messages WHERE document_path IS NOT NULL")
+            messages_with_docs = cur.fetchone()[0]
+            print(f"   Messages with documents: {messages_with_docs}")
+            
+            if message_count > 0:
+                cur.execute('''
+                    SELECT m.id, u1.name as sender, u2.name as receiver, 
+                           m.subject, m.document_filename, m.created_at
+                    FROM messages m
+                    JOIN users u1 ON m.sender_id = u1.id
+                    JOIN users u2 ON m.receiver_id = u2.id
+                    ORDER BY m.created_at DESC
+                    LIMIT 5
+                ''')
+                recent_messages = cur.fetchall()
+                print("   Recent messages:")
+                for msg in recent_messages:
+                    has_doc = f"📎 {msg[4]}" if msg[4] else "No attachment"
+                    print(f"     #{msg[0]}: '{msg[3]}' | From: {msg[1]} → To: {msg[2]} | {has_doc}")
+        
         # Check todos table
         if 'todos' in tables:
             cur.execute("SELECT COUNT(*) FROM todos")
             todo_count = cur.fetchone()[0]
             print(f"   Total todos: {todo_count}")
-        
-        # Check messages table
-        if 'messages' in tables:
-            cur.execute("SELECT COUNT(*) FROM messages")
-            message_count = cur.fetchone()[0]
-            print(f"   Total messages: {message_count}")
         
         # Test login queries
         print("\n🔐 Testing login functionality...")
@@ -163,6 +198,24 @@ def debug_database_connection():
             else:
                 print("   Employee user not found in database")
         
+        # Test document-related queries
+        print("\n📎 Testing document functionality...")
+        cur.execute('''
+            SELECT m.id, m.document_filename, m.document_path, u.name as sender
+            FROM messages m
+            JOIN users u ON m.sender_id = u.id
+            WHERE m.document_path IS NOT NULL
+            LIMIT 3
+        ''')
+        documents = cur.fetchall()
+        if documents:
+            print("✅ Documents found in database:")
+            for doc in documents:
+                print(f"   Message #{doc[0]}: '{doc[1]}' from {doc[3]}")
+                print(f"     Path: {doc[2]}")
+        else:
+            print("   No documents found in messages")
+        
         cur.close()
         conn.close()
         print("\n🎉 Database debug completed successfully!")
@@ -192,6 +245,9 @@ def test_specific_queries():
             "SELECT current_database()",  # Current database name
             "SELECT current_user",  # Current user
             "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public'",  # Table count
+            # Test message queries with document fields
+            "SELECT COUNT(*) FROM messages WHERE document_filename IS NOT NULL",
+            "SELECT column_name FROM information_schema.columns WHERE table_name = 'messages' AND column_name IN ('document_path', 'document_filename')",
         ]
         
         for query in queries:
@@ -202,6 +258,21 @@ def test_specific_queries():
             except Exception as e:
                 print(f"❌ Query failed: {query}")
                 print(f"   Error: {e}")
+        
+        # Test document column existence
+        print("\n🔍 Checking document-related columns in messages table:")
+        cur.execute("""
+            SELECT column_name, data_type, is_nullable
+            FROM information_schema.columns
+            WHERE table_name = 'messages' 
+            AND column_name IN ('document_path', 'document_filename')
+        """)
+        doc_columns = cur.fetchall()
+        if doc_columns:
+            for col in doc_columns:
+                print(f"✅ {col[0]}: {col[1]} (nullable: {col[2]})")
+        else:
+            print("❌ Document columns not found in messages table")
         
         cur.close()
         conn.close()
@@ -222,6 +293,7 @@ if __name__ == '__main__':
     print("\n" + "=" * 60)
     if success:
         print("✅ DEBUG COMPLETED - Database appears to be working correctly")
+        print("📎 Document support: ✅ Available")
         print("💡 If you're still having issues, check your application code")
     else:
         print("❌ DEBUG COMPLETED - Database issues found")

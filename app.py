@@ -1,13 +1,29 @@
 import os
 import psycopg2
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file
 from datetime import datetime
 import traceback
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 
 # Configuration
 app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-change-in-production')
+
+# File upload configuration
+UPLOAD_FOLDER = 'static/uploads'
+ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'doc', 'docx', 'xls', 'xlsx'}
+MAX_FILE_SIZE = 16 * 1024 * 1024  # 16MB
+
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = MAX_FILE_SIZE
+
+# Create upload folder if it doesn't exist
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def get_db_connection():
     """Get database connection with support for both local PostgreSQL and Render"""
@@ -90,6 +106,7 @@ def initialize_database():
                 subject VARCHAR(200),
                 message TEXT NOT NULL,
                 document_path VARCHAR(300),
+                document_filename VARCHAR(300),
                 is_read BOOLEAN DEFAULT FALSE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
@@ -416,20 +433,39 @@ def admin_send_message():
                 subject = request.form['subject']
                 message = request.form['message']
                 
+                document_path = None
+                document_filename = None
+                
+                # Handle file upload
+                if 'document' in request.files:
+                    file = request.files['document']
+                    if file and file.filename != '' and allowed_file(file.filename):
+                        filename = secure_filename(file.filename)
+                        # Create unique filename with timestamp
+                        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                        unique_filename = f"{timestamp}_{filename}"
+                        file_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
+                        file.save(file_path)
+                        document_path = file_path
+                        document_filename = filename
+                        flash(f'Document "{filename}" uploaded successfully!')
+                    elif file and file.filename != '':
+                        flash('File type not allowed. Please upload: txt, pdf, png, jpg, jpeg, gif, doc, docx, xls, xlsx')
+                
                 if receiver_id == 'all':
                     # Send to all employees
                     cur.execute('SELECT id FROM users WHERE role = %s', ('employee',))
                     employees = cur.fetchall()
                     for employee in employees:
                         cur.execute('''
-                            INSERT INTO messages (sender_id, receiver_id, subject, message) 
-                            VALUES (%s, %s, %s, %s)
-                        ''', (session['user_id'], employee[0], subject, message))
+                            INSERT INTO messages (sender_id, receiver_id, subject, message, document_path, document_filename) 
+                            VALUES (%s, %s, %s, %s, %s, %s)
+                        ''', (session['user_id'], employee[0], subject, message, document_path, document_filename))
                 else:
                     cur.execute('''
-                        INSERT INTO messages (sender_id, receiver_id, subject, message) 
-                        VALUES (%s, %s, %s, %s)
-                    ''', (session['user_id'], receiver_id, subject, message))
+                        INSERT INTO messages (sender_id, receiver_id, subject, message, document_path, document_filename) 
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                    ''', (session['user_id'], receiver_id, subject, message, document_path, document_filename))
                 
                 conn.commit()
                 flash('Message sent successfully!')
@@ -466,10 +502,29 @@ def employee_send_message():
                 subject = request.form['subject']
                 message = request.form['message']
                 
+                document_path = None
+                document_filename = None
+                
+                # Handle file upload
+                if 'document' in request.files:
+                    file = request.files['document']
+                    if file and file.filename != '' and allowed_file(file.filename):
+                        filename = secure_filename(file.filename)
+                        # Create unique filename with timestamp
+                        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                        unique_filename = f"{timestamp}_{filename}"
+                        file_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
+                        file.save(file_path)
+                        document_path = file_path
+                        document_filename = filename
+                        flash(f'Document "{filename}" uploaded successfully!')
+                    elif file and file.filename != '':
+                        flash('File type not allowed. Please upload: txt, pdf, png, jpg, jpeg, gif, doc, docx, xls, xlsx')
+                
                 cur.execute('''
-                    INSERT INTO messages (sender_id, receiver_id, subject, message) 
-                    VALUES (%s, %s, %s, %s)
-                ''', (session['user_id'], receiver_id, subject, message))
+                    INSERT INTO messages (sender_id, receiver_id, subject, message, document_path, document_filename) 
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                ''', (session['user_id'], receiver_id, subject, message, document_path, document_filename))
                 
                 conn.commit()
                 flash('Message sent successfully!')
@@ -527,6 +582,39 @@ def inbox():
         flash('Database connection error')
     
     return redirect(url_for(f"{session['role']}_dashboard"))
+
+@app.route('/download_document/<int:message_id>')
+def download_document(message_id):
+    """Download attached document"""
+    if 'user_id' not in session:
+        return redirect(url_for('index'))
+    
+    conn = get_db_connection()
+    if conn:
+        try:
+            cur = conn.cursor()
+            cur.execute('SELECT document_path, document_filename FROM messages WHERE id = %s', (message_id,))
+            message = cur.fetchone()
+            
+            if message and message[0] and message[1]:
+                document_path = message[0]
+                document_filename = message[1]
+                
+                if os.path.exists(document_path):
+                    return send_file(document_path, as_attachment=True, download_name=document_filename)
+                else:
+                    flash('Document file not found')
+            else:
+                flash('No document attached to this message')
+            
+            cur.close()
+            conn.close()
+        except Exception as e:
+            flash('Error downloading document')
+    else:
+        flash('Database connection error')
+    
+    return redirect(url_for('inbox'))
 
 # ===== PROFILE ROUTES =====
 

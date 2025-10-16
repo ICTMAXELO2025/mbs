@@ -14,10 +14,9 @@
         </div>
         <ul class="sidebar-menu">
             <li><a href="{{ url_for('admin_dashboard') }}">Dashboard</a></li>
-            <li><a href="{{ url_for('add_employee') }}">Add Employee</a></li>
-            <li><a href="{{ url_for('manage_employees') }}">Manage Employees</a></li>
             <li><a href="{{ url_for('admin_send_message') }}">Send Message</a></li>
             <li><a href="{{ url_for('inbox') }}" class="active">Inbox</a></li>
+            <li><a href="{{ url_for('manage_employees') }}">Manage Employees</a></li>
             <li><a href="{{ url_for('profile') }}">Profile</a></li>
             <li><a href="{{ url_for('logout') }}">Logout</a></li>
         </ul>
@@ -38,24 +37,48 @@
         <div class="dashboard-section">
             <h2>Received Messages</h2>
             
-            {% if messages %}
-                {% for message in messages %}
-                <div class="message-item {% if not message[6] %}unread{% endif %}">
-                    <div class="message-header">
-                        <span class="message-sender">From: {{ message[8] }}</span>
-                        <span class="message-date">{{ message[7].strftime('%Y-%m-%d %H:%M') }}</span>
+            {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                    <div class="flash-messages">
+                        {% for message in messages %}
+                            <div class="alert alert-{{ 'success' if 'success' in message else 'error' }}">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
                     </div>
-                    <div class="message-subject">{{ message[3] }}</div>
-                    <div class="message-content">{{ message[4] }}</div>
+                {% endif %}
+            {% endwith %}
+
+            {% if messages %}
+                <div class="messages-list">
+                    {% for message in messages %}
+                        <div class="message-card {% if not message[6] %}unread{% endif %}">
+                            <div class="message-header">
+                                <h3>{{ message[3] }}</h3>
+                                <span class="message-date">{{ message[8].strftime('%Y-%m-%d %H:%M') }}</span>
+                            </div>
+                            <div class="message-sender">
+                                <strong>From:</strong> {{ message[9] }}
+                            </div>
+                            <div class="message-content">
+                                <p>{{ message[4] }}</p>
+                            </div>
+                            {% if message[6] %}
+                                <div class="message-attachment">
+                                    <strong>Attachment:</strong> 
+                                    <a href="{{ url_for('download_document', message_id=message[0]) }}" class="btn btn-sm btn-outline">
+                                        📎 {{ message[7] }}
+                                    </a>
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
                 </div>
-                {% endfor %}
             {% else %}
-                <p>No messages in your inbox.</p>
+                <div class="empty-state">
+                    <p>No messages found.</p>
+                </div>
             {% endif %}
-            
-            <div style="margin-top: 20px;">
-                <a href="{{ url_for('admin_send_message') }}" class="btn btn-primary">Compose New Message</a>
-            </div>
         </div>
     </div>
 
